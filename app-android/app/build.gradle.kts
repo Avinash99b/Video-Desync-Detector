@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    id("com.chaquo.python")
 }
 
 android {
@@ -16,6 +17,19 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+        }
+
+        python {
+            version = "3.11"
+            pip {
+                install("numpy==2.4.4")
+                install("scipy==1.17.1")
+                install("tqdm==4.67.3")
+            }
+        }
     }
 
     buildTypes {
@@ -39,8 +53,13 @@ android {
     }
 }
 
-dependencies {
+chaquopy {
+    defaultConfig {
+        buildPython("python3")
+    }
+}
 
+dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -49,6 +68,9 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
