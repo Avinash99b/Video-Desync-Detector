@@ -2,7 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    id("com.chaquo.python")
+    alias(libs.plugins.chaquopy)
 }
 
 android {
@@ -19,16 +19,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
-        }
-
-        python {
-            version = "3.11"
-            pip {
-                install("numpy==2.4.4")
-                install("scipy==1.17.1")
-                install("tqdm==4.67.3")
-            }
+            abiFilters += listOf("arm64-v8a", "x86_64")
         }
     }
 
@@ -51,11 +42,18 @@ android {
     buildFeatures {
         compose = true
     }
+    buildToolsVersion = "34.0.0"
 }
 
 chaquopy {
     defaultConfig {
-        buildPython("python3")
+        version = "3.10"
+        pip {
+            install("numpy")
+            install("scipy")
+            install("tqdm==4.66.4")
+        }
+        buildPython("/home/avinash/.pyenv/shims/python3.10")
     }
 }
 
@@ -70,7 +68,8 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
-
+    // Source: https://mvnrepository.com/artifact/com.mrljdx/ffmpeg-kit-full
+    implementation("com.mrljdx:ffmpeg-kit-full:6.1.4")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

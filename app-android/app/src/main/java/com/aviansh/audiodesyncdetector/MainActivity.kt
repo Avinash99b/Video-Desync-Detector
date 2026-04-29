@@ -1,9 +1,13 @@
 package com.aviansh.audiodesyncdetector
 
-import android.database.Cursor
+import android.Manifest
+import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
-import android.provider.OpenableColumns
+import android.os.Environment
+import android.provider.MediaStore
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -23,24 +27,28 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import com.aviansh.audiodesyncdetector.ui.screen.DetectorViewModel
 import com.aviansh.audiodesyncdetector.ui.theme.AudioDesyncDetectorTheme
-import java.io.File
 
 class MainActivity : ComponentActivity() {
     private val viewModel: DetectorViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         enableEdgeToEdge()
         setContent {
             val uiState by viewModel.uiState.collectAsState()
+
+            // Request All Files Access on start
+            LaunchedEffect(Unit) {
+                requestStoragePermissions()
+            }
 
             AudioDesyncDetectorTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
@@ -48,7 +56,7 @@ class MainActivity : ComponentActivity() {
                         contract = ActivityResultContracts.GetContent()
                     ) { uri ->
                         uri?.let {
-                            copyToInternalStorage(it)?.let(viewModel::onFileSelected)
+                            viewModel.onFileSelected(getAbsolutePath(it))
                         }
                     }
 
@@ -107,32 +115,31 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun copyToInternalStorage(uri: Uri): String? {
-        return try {
-            val name = getFileName(uri) ?: "selected_video"
-            val destination = File(cacheDir, name)
-            contentResolver.openInputStream(uri)?.use { input ->
-                destination.outputStream().use { output -> input.copyTo(output) }
-            }
-            destination.absolutePath
-        } catch (_: Exception) {
-            null
+    private fun getAbsolutePath(uri: Uri): String{
+        val projection = arrayOf(MediaStore.MediaColumns.DATA)
+        val cursor = contentResolver.query(uri, projection, null, null, null)
+        cursor?.use {
+            val columnIndex = it.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA)
+            it.moveToFirst()
+            return it.getString(columnIndex)
         }
+        return ""
     }
-
-    private fun getFileName(uri: Uri): String? {
-        var result: String? = null
-        if (uri.scheme == "content") {
-            val cursor: Cursor? = contentResolver.query(uri, null, null, null, null)
-            cursor?.use {
-                if (it.moveToFirst()) {
-                    result = it.getString(it.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME))
-                }
+    private fun requestStoragePermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (!Environment.isExternalStorageManager()) {
+                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                intent.data = Uri.parse("package:$packageName")
+                startActivity(intent)
             }
+        } else {
+            requestPermissions(
+                arrayOf(
+                    Manifest.permission.READ_EXTERNAL_STORAGE,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE
+                ),
+                1001
+            )
         }
-        if (result == null) {
-            result = uri.toString().toUri().lastPathSegment
-        }
-        return result
     }
 }
