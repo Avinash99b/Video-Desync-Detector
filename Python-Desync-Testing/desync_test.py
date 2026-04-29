@@ -11,6 +11,10 @@ from scipy.io import wavfile
 from scipy.signal import correlate
 
 
+def print_progress(stage, percent):
+    print(f"Progress: {stage}: {int(percent)}%")
+
+
 def extract_audio(video_path, stream_index, output_path):
     cmd = [
         "ffmpeg", "-y", "-v", "quiet",
@@ -48,6 +52,8 @@ def get_audio_tracks(video_path):
 
 
 def xcorr_delay(ref, other, sr, max_delay_sec=30):
+    print_progress("Computing Delay", 60)
+
     ds = max(1, sr // 8000)
     r = ref[::ds]
     o = other[::ds]
@@ -59,12 +65,17 @@ def xcorr_delay(ref, other, sr, max_delay_sec=30):
     win = min(n, int(max_delay_sec * sr_ds))
 
     corr = correlate(r, o, mode="full")
+
+    print_progress("Computing Delay", 85)
+
     mid = len(r) - 1
     lo = max(0, mid - win)
     hi = min(len(corr), mid + win + 1)
 
     sub_corr = corr[lo:hi]
     lag = (lo + np.argmax(np.abs(sub_corr))) - mid
+
+    print_progress("Computing Delay", 100)
 
     return (lag / sr_ds) * 1000.0  # ms
 
@@ -75,13 +86,14 @@ def main():
         sys.exit(1)
 
     video = Path(sys.argv[1])
+
+    print_progress("Parsing Input", 5)
     tracks = get_audio_tracks(video)
 
     if len(tracks) < 2:
         print("Need at least 2 audio tracks")
         sys.exit(1)
 
-    # use first as reference, second as comparison
     ref_idx = tracks[0]["index"]
     other_idx = tracks[1]["index"]
 
@@ -89,11 +101,19 @@ def main():
         ref_wav = Path(tmp) / "ref.wav"
         other_wav = Path(tmp) / "other.wav"
 
+        print_progress("Extracting Audio", 10)
         extract_audio(video, ref_idx, ref_wav)
+
+        print_progress("Extracting Audio", 40)
         extract_audio(video, other_idx, other_wav)
 
+        print_progress("Extracting Audio", 70)
         sr, ref_audio = load_wav(ref_wav)
+
+        print_progress("Extracting Audio", 85)
         _, other_audio = load_wav(other_wav)
+
+        print_progress("Extracting Audio", 100)
 
         delay_ms = xcorr_delay(ref_audio, other_audio, sr)
 
